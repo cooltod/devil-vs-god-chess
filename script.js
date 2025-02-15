@@ -1,80 +1,161 @@
-// Scene setup
+import { Chess } from './chess.js';
+
+// Initialize Chess Game
+const chess = new Chess();
+
+// Three.js Scene Setup
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('chess-canvas') });
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('chess-canvas'), antialias: true });
 
 renderer.setSize(window.innerWidth * 0.8, window.innerHeight * 0.8);
-document.body.appendChild(renderer.domElement);
+renderer.shadowMap.enabled = true;
 
-// Chessboard setup
+// Lighting
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
+const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+directionalLight.position.set(5, 5, 5);
+directionalLight.castShadow = true;
+scene.add(directionalLight);
+
+// Chessboard Setup
 const boardSize = 8;
 const squareSize = 1;
+let selectedPiece = null;
+const pieceModels = {
+    'wK': null,
+    'bQ': null
+};
 
 function createChessboard() {
     const geometry = new THREE.BoxGeometry(squareSize, 0.1, squareSize);
-    const materialWhite = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    const materialBlack = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    const materialWhite = new THREE.MeshStandardMaterial({ color: 0xeeeeee });
+    const materialBlack = new THREE.MeshStandardMaterial({ color: 0x222222 });
 
-    for (let i = 0; i < boardSize; i++) {
-        for (let j = 0; j < boardSize; j++) {
+    for(let i = 0; i < boardSize; i++) {
+        for(let j = 0; j < boardSize; j++) {
             const material = (i + j) % 2 === 0 ? materialWhite : materialBlack;
             const square = new THREE.Mesh(geometry, material);
-            square.position.x = i * squareSize - (boardSize * squareSize) / 2 + squareSize / 2;
-            square.position.z = j * squareSize - (boardSize * squareSize) / 2 + squareSize / 2;
+            square.receiveShadow = true;
+            square.position.set(
+                i * squareSize - (boardSize * squareSize)/2 + squareSize/2,
+                -0.05,
+                j * squareSize - (boardSize * squareSize)/2 + squareSize/2
+            );
+            square.userData.position = {x: i, y: j};
             scene.add(square);
         }
     }
 }
 
-createChessboard();
-
 // Load 3D Models
 const loader = new THREE.GLTFLoader();
 
-// Load Devil King
-loader.load('assets/devil-king.glb', (gltf) => {
-    const devilKing = gltf.scene;
-    devilKing.scale.set(0.5, 0.5, 0.5);
-    devilKing.position.set(-3.5, 0.5, -3.5);
-    scene.add(devilKing);
-}, undefined, (error) => {
-    console.error('Error loading Devil King:', error);
-});
-
-// Load God Queen
-loader.load('assets/god-queen.glb', (gltf) => {
-    const godQueen = gltf.scene;
-    godQueen.scale.set(0.5, 0.5, 0.5);
-    godQueen.position.set(3.5, 0.5, 3.5);
-    scene.add(godQueen);
-}, undefined, (error) => {
-    console.error('Error loading God Queen:', error);
-});
-
-// Camera position
-camera.position.y = 5;
-camera.position.z = 10;
-camera.lookAt(0, 0, 0);
-
-// Animation loop
-function animate() {
-    requestAnimationFrame(animate);
-    renderer.render(scene, camera);
+async function loadPieceModel(path, type) {
+    return new Promise((resolve) => {
+        loader.load(path, (gltf) => {
+            const model = gltf.scene;
+            model.traverse(child => {
+                if(child.isMesh) {
+                    child.castShadow = true;
+                }
+            });
+            model.scale.set(0.4, 0.4, 0.4);
+            pieceModels[type] = model;
+            scene.add(model);
+            resolve(model);
+        });
+    });
 }
 
-animate();
+// Initialize Game
+async function initGame() {
+    createChessboard();
+    await loadPieceModel('assets/devil-king.glb', 'bQ');
+    await loadPieceModel('assets/god-queen.glb', 'wK');
+    updatePiecePositions();
+}
 
-// Intro Screen Logic
-document.getElementById('start-game').addEventListener('click', () => {
-    document.getElementById('intro-screen').style.display = 'none';
-    document.getElementById('game-container').style.display = 'block';
-});
+// Update 3D Models Position
+function updatePiecePositions() {
+    chess.board().forEach((row, x) => {
+        row.forEach((square, y) => {
+            if(square) {
+                const modelType = `${square.color}${square.type.toUpperCase()}`;
+                if(pieceModels[modelType]) {
+                    pieceModels[modelType].position.set(
+                        x * squareSize - (boardSize * squareSize)/2 + squareSize/2,
+                        0.5,
+                        y * squareSize - (boardSize * squareSize)/2 + squareSize/2
+                    );
+                }
+            }
+        });
+    });
+}
 
-// Abilities Logic
+// Camera Setup
+camera.position.set(0, 10, 15);
+camera.lookAt(0, 0, 0);
+
+// Raycaster for Piece Selection
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+function onCanvasClick(event) {
+    mouse.x = (event.clientX / renderer.domElement.width) * 2 - 1;
+    mouse.y = -(event.clientY / renderer.domElement.height) * 2 + 1;
+    
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(scene.children);
+    
+    if(intersects.length > 0) {
+        const intersect = intersects[0];
+        if(intersect.object.userData.position) {
+            handleSquareClick(intersect.object.userData.position);
+        }
+    }
+}
+
+// Game Logic
+function handleSquareClick(position) {
+    const chessNotation = `${String.fromCharCode(97 + position.x)}${8 - position.y}`;
+    
+    if(selectedPiece) {
+        const move = chess.move({
+            from: selectedPiece,
+            to: chessNotation,
+            promotion: 'q'
+        });
+        
+        if(move) {
+            updatePiecePositions();
+            checkGameState();
+        }
+        selectedPiece = null;
+    } else {
+        const piece = chess.get(chessNotation);
+        if(piece && piece.color === chess.turn()) {
+            selectedPiece = chessNotation;
+        }
+    }
+}
+
+function checkGameState() {
+    if(chess.isGameOver()) {
+        setTimeout(() => {
+            alert(getGameResult());
+            resetGame();
+        }, 500);
+    }
+}
+
+// Mana System
 let mana = 100;
 
 function useMana(cost) {
-    if (mana >= cost) {
+    if(mana >= cost) {
         mana -= cost;
         document.getElementById('mana-fill').style.width = `${mana}%`;
         return true;
@@ -83,38 +164,30 @@ function useMana(cost) {
     return false;
 }
 
-document.getElementById('healing-aura').addEventListener('click', () => {
-    if (useMana(20)) alert("Healing Aura activated!");
-});
+// Ability Effects
+function activateHealingAura() {
+    if(useMana(20)) {
+        // Add healing effect logic
+        console.log("Health restored!");
+    }
+}
 
-document.getElementById('divine-shield').addEventListener('click', () => {
-    if (useMana(25)) alert("Divine Shield activated!");
-});
-
-document.getElementById('lightning-strike').addEventListener('click', () => {
-    if (useMana(30)) alert("Lightning Strike activated!");
-});
-
-document.getElementById('inferno').addEventListener('click', () => {
-    if (useMana(30)) alert("Inferno activated!");
-});
-
-document.getElementById('possession').addEventListener('click', () => {
-    if (useMana(35)) alert("Possession activated!");
-});
-
-document.getElementById('shadow-step').addEventListener('click', () => {
-    if (useMana(15)) alert("Shadow Step activated!");
-});
-
-// Reset Game Logic
+// Event Listeners
+document.getElementById('chess-canvas').addEventListener('click', onCanvasClick);
+document.getElementById('healing-aura').addEventListener('click', activateHealingAura);
 document.getElementById('reset-game').addEventListener('click', () => {
+    chess.reset();
+    updatePiecePositions();
     mana = 100;
-    document.getElementById('mana-fill').style.width = `${mana}%`;
-    alert("Game reset!");
+    document.getElementById('mana-fill').style.width = '100%';
 });
 
-// Undo Move Logic
-document.getElementById('undo-move').addEventListener('click', () => {
-    alert("Move undone!");
-});
+// Animation Loop
+function animate() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+}
+
+// Start Game
+initGame();
+animate();
