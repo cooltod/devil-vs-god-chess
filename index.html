@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Devil vs God Chess</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Intro Screen -->
+    <div id="intro-screen">
+        <div id="intro-content">
+            <h1>Devil vs God: The Ultimate Battle</h1>
+            <p>In a world torn apart by chaos and order, the Devil and God face off in a magical chess duel. Choose your side and unleash your powers!</p>
+            <button id="start-game">Start Game</button>
+        </div>
+    </div>
+
+    <!-- Game Container -->
+    <div id="game-container">
+        <!-- Player Names -->
+        <div id="player-names">
+            <div id="player1-name" class="player-name devil">Devil</div>
+            <div id="player2-name" class="player-name god">God</div>
+        </div>
+
+        <!-- Chessboard Canvas -->
+        <canvas id="chess-canvas"></canvas>
+
+        <!-- UI Controls -->
+        <div id="ui-controls">
+            <button id="reset-game">Reset Game</button>
+            <button id="undo-move">Undo Move</button>
+        </div>
+
+        <!-- Abilities -->
+        <div id="abilities">
+            <button id="healing-aura" class="ability god">Healing Aura</button>
+            <button id="divine-shield" class="ability god">Divine Shield</button>
+            <button id="lightning-strike" class="ability god">Lightning Strike</button>
+            <button id="inferno" class="ability devil">Inferno</button>
+            <button id="possession" class="ability devil">Possession</button>
+            <button id="shadow-step" class="ability devil">Shadow Step</button>
+        </div>
+    </div>
+
+    <!-- Mana Bar -->
+    <div id="mana-bar">
+        <div id="mana-fill"></div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
