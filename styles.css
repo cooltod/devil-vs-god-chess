@@ -1,40 +1,35 @@
 /* General Styles */
 body {
-    margin: 0;
     font-family: Arial, sans-serif;
-    background-color: #f4f4f4;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
+    background-color: #1a1a1a;
+    color: white;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
 }
 
 /* Intro Screen */
 #intro-screen {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(135deg, #ff4d4d, #333);
-    color: white;
     display: flex;
     justify-content: center;
     align-items: center;
-    text-align: center;
-    z-index: 1000;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.9);
 }
 
 #intro-content {
-    background: rgba(0, 0, 0, 0.7);
+    max-width: 600px;
     padding: 20px;
+    background-color: rgba(255, 255, 255, 0.1);
     border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
 }
 
 #intro-content h1 {
     font-size: 36px;
-    margin-bottom: 10px;
+    margin-bottom: 20px;
+    color: #ff4d4d;
+    text-shadow: 0 0 10px #ff4d4d, 0 0 20px #ff4d4d;
 }
 
 #intro-content p {
@@ -59,12 +54,15 @@ body {
 
 /* Game Container */
 #game-container {
+    display: none;
     position: relative;
     width: 80%;
     max-width: 800px;
     height: 600px;
-    background-color: #fff;
-    border: 2px solid #333;
+    margin: 20px auto;
+    background-color: #333;
+    border: 2px solid #444;
+    border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     overflow: hidden;
 }
@@ -74,7 +72,7 @@ body {
     display: flex;
     justify-content: space-between;
     padding: 10px;
-    background-color: #333;
+    background-color: #222;
     color: white;
     font-size: 20px;
     font-weight: bold;
@@ -86,19 +84,19 @@ body {
 }
 
 .devil {
-    color: #ff4d4d; /* Fiery Red */
+    color: #ff4d4d;
     text-shadow: 0 0 10px #ff4d4d, 0 0 20px #ff4d4d;
 }
 
 .god {
-    color: #ffffff; /* Divine White */
+    color: #ffffff;
     text-shadow: 0 0 10px #ffffff, 0 0 20px #ffffff;
 }
 
 /* Chessboard Canvas */
 #chess-canvas {
     width: 100%;
-    height: calc(100% - 50px); /* Leave space for player names */
+    height: calc(100% - 50px);
     display: block;
 }
 
@@ -112,7 +110,7 @@ body {
     gap: 10px;
 }
 
-button {
+#ui-controls button {
     padding: 10px 20px;
     font-size: 16px;
     background-color: #007bff;
@@ -123,7 +121,7 @@ button {
     transition: background-color 0.3s ease;
 }
 
-button:hover {
+#ui-controls button:hover {
     background-color: #0056b3;
 }
 
@@ -143,13 +141,13 @@ button:hover {
     transition: background-color 0.3s ease;
 }
 
-.god {
-    background-color: #ffffff;
-    color: #333;
-    text-shadow: 0 0 10px #ffffff;
+.ability.god {
+    background-color: #44aaff;
+    color: white;
+    text-shadow: 0 0 10px #44aaff;
 }
 
-.devil {
+.ability.devil {
     background-color: #ff4d4d;
     color: white;
     text-shadow: 0 0 10px #ff4d4d;
@@ -163,7 +161,7 @@ button:hover {
 #mana-bar {
     width: 100%;
     height: 20px;
-    background-color: #333;
+    background-color: #222;
     border-radius: 10px;
     overflow: hidden;
     margin-top: 10px;
