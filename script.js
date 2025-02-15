@@ -1,193 +1,161 @@
-import { Chess } from './chess.js';
+import { resetGame, makeMove, undoMove, getBoardState, applyAbility, getTurn } from './chess.js';
 
-// Initialize Chess Game
-const chess = new Chess();
-
-// Three.js Scene Setup
+// Three.js Setup
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('chess-canvas'), antialias: true });
-
 renderer.setSize(window.innerWidth * 0.8, window.innerHeight * 0.8);
-renderer.shadowMap.enabled = true;
 
 // Lighting
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
 scene.add(ambientLight);
 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
 directionalLight.position.set(5, 5, 5);
-directionalLight.castShadow = true;
 scene.add(directionalLight);
 
-// Chessboard Setup
+// Game State
+let selectedPiece = null;
+let mana = 100;
+const pieceMeshes = [];
 const boardSize = 8;
 const squareSize = 1;
-let selectedPiece = null;
-const pieceModels = {
-    'wK': null,
-    'bQ': null
-};
 
-function createChessboard() {
-    const geometry = new THREE.BoxGeometry(squareSize, 0.1, squareSize);
-    const materialWhite = new THREE.MeshStandardMaterial({ color: 0xeeeeee });
-    const materialBlack = new THREE.MeshStandardMaterial({ color: 0x222222 });
-
-    for(let i = 0; i < boardSize; i++) {
-        for(let j = 0; j < boardSize; j++) {
-            const material = (i + j) % 2 === 0 ? materialWhite : materialBlack;
-            const square = new THREE.Mesh(geometry, material);
-            square.receiveShadow = true;
+// Initialize Board
+function createBoard() {
+    const boardGeometry = new THREE.BoxGeometry(squareSize, 0.1, squareSize);
+    
+    for(let x = 0; x < boardSize; x++) {
+        for(let z = 0; z < boardSize; z++) {
+            const material = new THREE.MeshStandardMaterial({
+                color: (x + z) % 2 === 0 ? 0xeeeeee : 0x222222
+            });
+            const square = new THREE.Mesh(boardGeometry, material);
             square.position.set(
-                i * squareSize - (boardSize * squareSize)/2 + squareSize/2,
-                -0.05,
-                j * squareSize - (boardSize * squareSize)/2 + squareSize/2
+                x * squareSize - (boardSize * squareSize)/2 + squareSize/2,
+                -0.1,
+                z * squareSize - (boardSize * squareSize)/2 + squareSize/2
             );
-            square.userData.position = {x: i, y: j};
+            square.userData.position = {x, z};
             scene.add(square);
         }
     }
 }
 
-// Load 3D Models
+// Load Pieces
 const loader = new THREE.GLTFLoader();
+const pieceModels = {
+    'wK': null,
+    'bQ': null
+};
 
-async function loadPieceModel(path, type) {
-    return new Promise((resolve) => {
-        loader.load(path, (gltf) => {
+async function loadPieces() {
+    pieceModels['wK'] = await loadModel('assets/god-queen.glb');
+    pieceModels['bQ'] = await loadModel('assets/devil-king.glb');
+    updatePieces();
+}
+
+function loadModel(path) {
+    return new Promise(resolve => {
+        loader.load(path, gltf => {
             const model = gltf.scene;
-            model.traverse(child => {
-                if(child.isMesh) {
-                    child.castShadow = true;
-                }
-            });
             model.scale.set(0.4, 0.4, 0.4);
-            pieceModels[type] = model;
             scene.add(model);
             resolve(model);
         });
     });
 }
 
-// Initialize Game
-async function initGame() {
-    createChessboard();
-    await loadPieceModel('assets/devil-king.glb', 'bQ');
-    await loadPieceModel('assets/god-queen.glb', 'wK');
-    updatePiecePositions();
-}
+// Update 3D Pieces
+function updatePieces() {
+    // Clear existing pieces
+    pieceMeshes.forEach(mesh => scene.remove(mesh));
+    pieceMeshes.length = 0;
 
-// Update 3D Models Position
-function updatePiecePositions() {
-    chess.board().forEach((row, x) => {
-        row.forEach((square, y) => {
+    // Add new pieces
+    getBoardState().forEach((row, x) => {
+        row.forEach((square, z) => {
             if(square) {
-                const modelType = `${square.color}${square.type.toUpperCase()}`;
-                if(pieceModels[modelType]) {
-                    pieceModels[modelType].position.set(
-                        x * squareSize - (boardSize * squareSize)/2 + squareSize/2,
-                        0.5,
-                        y * squareSize - (boardSize * squareSize)/2 + squareSize/2
-                    );
-                }
+                const model = pieceModels[`${square.color}${square.type.toUpperCase()}`].clone();
+                model.position.set(
+                    x * squareSize - (boardSize * squareSize)/2 + squareSize/2,
+                    0.5,
+                    z * squareSize - (boardSize * squareSize)/2 + squareSize/2
+                );
+                pieceMeshes.push(model);
+                scene.add(model);
             }
         });
     });
 }
 
-// Camera Setup
-camera.position.set(0, 10, 15);
-camera.lookAt(0, 0, 0);
-
-// Raycaster for Piece Selection
+// Interaction System
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
-function onCanvasClick(event) {
-    mouse.x = (event.clientX / renderer.domElement.width) * 2 - 1;
-    mouse.y = -(event.clientY / renderer.domElement.height) * 2 + 1;
+document.getElementById('chess-canvas').addEventListener('click', event => {
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
     
     raycaster.setFromCamera(mouse, camera);
     const intersects = raycaster.intersectObjects(scene.children);
     
     if(intersects.length > 0) {
-        const intersect = intersects[0];
-        if(intersect.object.userData.position) {
-            handleSquareClick(intersect.object.userData.position);
+        const square = intersects[0].object.userData.position;
+        handleSquareClick(square);
+    }
+});
+
+function handleSquareClick(pos) {
+    const square = `${String.fromCharCode(97 + pos.x)}${8 - pos.z}`;
+    
+    if(selectedPiece) {
+        const result = makeMove(selectedPiece, square);
+        if(result.success) {
+            updatePieces();
+            checkGameState();
+        }
+        selectedPiece = null;
+    } else {
+        const piece = chess.get(square);
+        if(piece && piece.color === getTurn()) {
+            selectedPiece = square;
         }
     }
 }
 
 // Game Logic
-function handleSquareClick(position) {
-    const chessNotation = `${String.fromCharCode(97 + position.x)}${8 - position.y}`;
-    
-    if(selectedPiece) {
-        const move = chess.move({
-            from: selectedPiece,
-            to: chessNotation,
-            promotion: 'q'
-        });
-        
-        if(move) {
-            updatePiecePositions();
-            checkGameState();
-        }
-        selectedPiece = null;
-    } else {
-        const piece = chess.get(chessNotation);
-        if(piece && piece.color === chess.turn()) {
-            selectedPiece = chessNotation;
-        }
-    }
-}
-
 function checkGameState() {
-    if(chess.isGameOver()) {
+    if(isGameOver()) {
         setTimeout(() => {
             alert(getGameResult());
             resetGame();
+            updatePieces();
         }, 500);
     }
 }
 
 // Mana System
-let mana = 100;
-
-function useMana(cost) {
-    if(mana >= cost) {
-        mana -= cost;
-        document.getElementById('mana-fill').style.width = `${mana}%`;
-        return true;
-    }
-    alert("Not enough mana!");
-    return false;
+function updateManaDisplay() {
+    document.getElementById('mana-fill').style.width = `${mana}%`;
 }
 
-// Ability Effects
-function activateHealingAura() {
-    if(useMana(20)) {
-        // Add healing effect logic
-        console.log("Health restored!");
+document.getElementById('healing-aura').addEventListener('click', () => {
+    if(mana >= 20) {
+        mana -= 20;
+        updateManaDisplay();
+        applyAbility('healing-aura', 'e5'); // Example target
     }
-}
-
-// Event Listeners
-document.getElementById('chess-canvas').addEventListener('click', onCanvasClick);
-document.getElementById('healing-aura').addEventListener('click', activateHealingAura);
-document.getElementById('reset-game').addEventListener('click', () => {
-    chess.reset();
-    updatePiecePositions();
-    mana = 100;
-    document.getElementById('mana-fill').style.width = '100%';
 });
+
+// Initialize
+createBoard();
+loadPieces();
+camera.position.set(0, 10, 15);
+camera.lookAt(0, 0, 0);
 
 // Animation Loop
 function animate() {
     requestAnimationFrame(animate);
     renderer.render(scene, camera);
 }
-
-// Start Game
-initGame();
 animate();
