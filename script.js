@@ -67,6 +67,7 @@ animate();
 // Intro Screen Logic
 document.getElementById('start-game').addEventListener('click', () => {
     document.getElementById('intro-screen').style.display = 'none';
+    document.getElementById('game-container').style.display = 'block';
 });
 
 // Abilities Logic
@@ -83,13 +84,37 @@ function useMana(cost) {
 }
 
 document.getElementById('healing-aura').addEventListener('click', () => {
-    if (useMana(20)) {
-        alert("Healing Aura activated!");
-    }
+    if (useMana(20)) alert("Healing Aura activated!");
+});
+
+document.getElementById('divine-shield').addEventListener('click', () => {
+    if (useMana(25)) alert("Divine Shield activated!");
+});
+
+document.getElementById('lightning-strike').addEventListener('click', () => {
+    if (useMana(30)) alert("Lightning Strike activated!");
 });
 
 document.getElementById('inferno').addEventListener('click', () => {
-    if (useMana(30)) {
-        alert("Inferno activated!");
-    }
+    if (useMana(30)) alert("Inferno activated!");
+});
+
+document.getElementById('possession').addEventListener('click', () => {
+    if (useMana(35)) alert("Possession activated!");
+});
+
+document.getElementById('shadow-step').addEventListener('click', () => {
+    if (useMana(15)) alert("Shadow Step activated!");
+});
+
+// Reset Game Logic
+document.getElementById('reset-game').addEventListener('click', () => {
+    mana = 100;
+    document.getElementById('mana-fill').style.width = `${mana}%`;
+    alert("Game reset!");
+});
+
+// Undo Move Logic
+document.getElementById('undo-move').addEventListener('click', () => {
+    alert("Move undone!");
 });
