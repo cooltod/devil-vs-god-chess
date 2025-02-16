@@ -1,10 +1,13 @@
-import { resetGame, makeMove, undoMove, getBoardState, applyAbility, getTurn } from './chess.js';
+import { resetGame, makeMove, undoMove, getBoardState, applyAbility, getTurn, getPieceAt } from './chess.js';
 
 // Three.js Setup
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('chess-canvas'), antialias: true });
-renderer.setSize(window.innerWidth * 0.8, window.innerHeight * 0.8);
+const canvas = document.getElementById('chess-canvas');
+renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+camera.aspect = canvas.clientWidth / canvas.clientHeight;
+camera.updateProjectionMatrix();
 
 // Lighting
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
@@ -59,7 +62,6 @@ function loadModel(path) {
         loader.load(path, gltf => {
             const model = gltf.scene;
             model.scale.set(0.4, 0.4, 0.4);
-            scene.add(model);
             resolve(model);
         });
     });
@@ -77,9 +79,9 @@ function updatePieces() {
             if(square) {
                 const model = pieceModels[`${square.color}${square.type.toUpperCase()}`].clone();
                 model.position.set(
-                    x * squareSize - (boardSize * squareSize)/2 + squareSize/2,
+                    z * squareSize - (boardSize * squareSize)/2 + squareSize/2,
                     0.5,
-                    z * squareSize - (boardSize * squareSize)/2 + squareSize/2
+                    x * squareSize - (boardSize * squareSize)/2 + squareSize/2
                 );
                 pieceMeshes.push(model);
                 scene.add(model);
@@ -116,7 +118,7 @@ function handleSquareClick(pos) {
         }
         selectedPiece = null;
     } else {
-        const piece = chess.get(square);
+        const piece = getPieceAt(square);
         if(piece && piece.color === getTurn()) {
             selectedPiece = square;
         }
@@ -159,3 +161,11 @@ function animate() {
     renderer.render(scene, camera);
 }
 animate();
+
+// Handle Window Resize
+window.addEventListener('resize', () => {
+    const canvas = document.getElementById('chess-canvas');
+    camera.aspect = canvas.clientWidth / canvas.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+});
