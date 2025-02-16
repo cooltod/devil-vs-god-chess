@@ -1,4 +1,4 @@
-import { Chess } from 'chess.js';
+import { Chess } from 'https://cdn.skypack.dev/chess.js';
 
 const chess = new Chess();
 
@@ -39,6 +39,10 @@ export function getGameResult() {
 
 export function getTurn() {
     return chess.turn();
+}
+
+export function getPieceAt(square) {
+    return chess.get(square);
 }
 
 // Ability System
